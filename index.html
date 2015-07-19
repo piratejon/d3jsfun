@@ -10,19 +10,80 @@
       fill: white;
       text-anchor: end;
     }
+    .chart { 
+      border: 1px solid black;
+    }
     </style>
   </head>
   <body>
-    <svg class='chart'></svg>
+    <!-- this svg object contains our chart in the DOM -->
+    <svg id='series_wins_by_year' class='chart'></svg>
+
+    <!-- load these after the SVG is attached or it won't be there when we need it -->
     <script type='text/javascript' src='http://d3js.org/d3.v3.min.js' charset='utf-8'></script>
     <script type='text/javascript'>
-      var data = [4, 8, 15, 16, 23, 42];
-      var width = 420, barHeight = 20;
-      var x = d3.scale.linear().domain([0, d3.max(data)]).range([0, width]);
-      var chart = d3.select('.chart').attr('width', width).attr('height', barHeight * data.length);
-      var bar = chart.selectAll('g').data(data).enter().append('g').attr('transform', function (d, i) { return 'translate(0,' + i*barHeight + ')'; });
-      bar.append('rect').attr('width', x).attr('height', barHeight - 1);
-      bar.append('text').attr('x', function (d) { return x(d) - 3; }).attr('y', barHeight / 2).attr('dy', '.35em').text(function (d) { return d; });
+      // width will get applied to the element in pixels
+      var G;
+
+      G = {};
+      G.width = 820;
+      G.chart = d3.select('#series_wins_by_year').attr('width', G.width);
+
+      function wins_by_year_barchart(data) {
+          var xscale, bar, barHeight;
+
+          barHeight = 18;
+          // setup a scale that takes up 7/9ths of the container width.
+          // i guess we could just use a margin. i should learn about that
+          // next!
+          xscale = d3.scale.linear().range([0, 7*G.width/9]);
+
+          // the domain in our scale will be 0 to the max wins value
+          xscale.domain([0, d3.max(data, function(d) { return +d.wins; })]);
+
+          // make it as high is required to fit a bar for each row
+          G.chart.attr('height', barHeight * data.length);
+
+          var bar = G.chart.selectAll('g')
+            .data(data, function (d) { return d.teamIDwinner; })
+            // "enter" into the data and append a g for each which is the bar
+            .enter().append('g')
+              .attr('transform', function(d,i) {
+                // this is where we use d to set color!
+                  return 'translate(0,' + i * barHeight + ')';
+                  });
+          bar.append('rect')
+            .attr('width', function(d) { return xscale(d.wins); })
+            .attr('height', barHeight - 1);
+//             .style('fill', function(d) { return '#ff0000'; });
+          bar.append('text')
+            .attr('x', function(d) { return xscale(d.wins) - 3; })
+            .attr('y', barHeight / 2)
+            .attr('dy', '.35em')
+            .text(function(d) { return '' + d.teamIDwinner + ':' + d.wins; });
+      }
+
+      d3.csv('file:///home/js/src/d3jsfun/data/SeriesPost.csv', function(error, data) {
+          var nesty;
+          nesty = d3.nest()
+            .key(function (d) { return d.teamIDwinner; })
+            // .sortValues(function (a, b) { return ((a.wins < b.wins) ? -1 : 1); })
+            .sortValues(d3.descending)
+            .rollup(function (d) {
+              return d3.sum(d, function (g) { return g.wins; });
+              })
+            .entries(data);
+          nesty.forEach(function (d) {
+            d.teamIDwinner = d.key;
+            d.wins = d.values;
+            });
+          wins_by_year_barchart(nesty)
+          });
+
+      function type(d) {
+        d.wins = +d.wins;
+        return d;
+      }
     </script>
   </body>
 </html>
